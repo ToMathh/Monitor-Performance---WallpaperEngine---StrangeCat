@@ -6,7 +6,7 @@ StrangeCat Monitor displays your live system stats in a floating desktop widget 
 
 * ✅ No internet required
 * ✅ Lightweight & portable
-* ✅ Works locally on `[127.0.0.1](http://127.0.0.1:5100/performance)`
+* ✅ Works locally on `127.0.0.1:5100/performance`
 * ✅ Compatible with Wallpaper Engine
 * ✅ Graph mode & compact mode
 * ✅ System tray support
