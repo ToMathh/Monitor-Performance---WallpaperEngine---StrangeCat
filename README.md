@@ -1,4 +1,4 @@
-# 🐱 StrangeCat Monitor v3.2
+# 🐱 StrangeCat Monitor v3.6
 
 A lightweight Windows desktop monitor designed for **Wallpaper Engine** integration.
 
@@ -10,6 +10,9 @@ StrangeCat Monitor displays your live system stats in a floating desktop widget 
 * ✅ Compatible with Wallpaper Engine
 * ✅ Graph mode & compact mode
 * ✅ System tray support
+* ✅ Disk monitoring (auto-detected drives)
+* ✅ Multilingual (English / French)
+* ✅ Configurable performance modes
 
 ---
 
@@ -157,8 +160,8 @@ Settings → HTTP API
 
 ```txt
 ┌──────────────────────────────────────────────────────┐
-│ 🐱 STRANGECAT          [⊟] [⚙] [—] [✕]             │
-│    MONITOR  v3.2                                     │
+│ 🐱 STRANGECAT    🇬🇧  [⊟] [⚙] [—] [✕]              │
+│    MONITOR  v3.6                                     │
 ├──────────────────────────────────────────────────────┤
 │                                                      │
 │        Live system metrics displayed here            │
@@ -174,6 +177,7 @@ Settings → HTTP API
 
 | Button    | Description                      |
 | --------- | -------------------------------- |
+| 🇬🇧 / 🇫🇷  | Language toggle (EN/FR)          |
 | `⊟` / `⊞` | Toggle Graph Mode / Compact Mode |
 | `⚙`       | Open Settings                    |
 | `—`       | Hide to system tray              |
@@ -196,6 +200,7 @@ Settings → HTTP API
 * Drag the title bar to move the window
 * Drag the bottom-right corner `◢` to resize
 * Window content scales automatically
+* Minimum window height: 100px (header always visible)
 
 ---
 
@@ -216,11 +221,14 @@ Each metric has its own card with a real-time sparkline graph showing the last 6
 
 ### Features
 
-* Responsive grid layout
-* Individual metric cards
-* Collapsible sections
+* Responsive grid layout (1–3 columns depending on width)
+* Individual metric cards, collapsible (▾/▸)
 * Live graph history
 * Automatic color warnings
+
+### Collapse Behavior
+
+Collapsed metrics stay in the grid but take minimal height — the header row remains visible while other metrics expand to use the freed space.
 
 ### Color Indicators
 
@@ -238,6 +246,8 @@ Minimal bar-based layout with no graphs.
 CPU       ▬▬▬▬▬▬▬▬▬░░░░░   40 %
 RAM       ▬▬▬▬▬▬▬▬▬▬▬░░░   51 %
 GPU       ▬▬▬▬░░░░░░░░░░   22 %
+C:        ▬▬▬▬▬▬▬░░░░░░░   48 %
+D:        ▬▬░░░░░░░░░░░░   14 %
 ```
 
 Perfect for small desktop corners and lower CPU usage.
@@ -245,7 +255,7 @@ Perfect for small desktop corners and lower CPU usage.
 ### Compact Mode Features
 
 * Smaller footprint
-* Auto-adjusting height
+* Auto-adjusting height (horizontal resize only)
 * Lower rendering cost
 * Cleaner minimalist layout
 
@@ -272,14 +282,16 @@ Open settings with:
 
 ## Display
 
-| Option         | Description                |
-| -------------- | -------------------------- |
-| Always on top  | Keep above other windows   |
-| Compact mode   | Enable compact layout      |
-| Opacity        | Window transparency        |
-| Refresh rate   | 1s / 2s / 5s updates       |
-| Temp unit      | Celsius or Fahrenheit      |
-| Low power mode | Reduce refresh when hidden |
+| Option               | Description                        |
+| -------------------- | ---------------------------------- |
+| Always on top        | Keep above other windows           |
+| Compact mode         | Enable compact layout              |
+| Opacity              | Window transparency                |
+| Refresh rate         | 1s / 2s / 5s updates               |
+| Temp unit            | Celsius or Fahrenheit              |
+| Low power mode       | Reduce refresh when hidden         |
+| Performance mode     | Ultra / Normal / Optimized / Low   |
+| Language             | English / French                   |
 
 ---
 
@@ -301,20 +313,57 @@ Disabled metrics:
 * disappear from the widget
 * stop being sent to wallpapers
 
+Disk metrics can be toggled globally or per drive.
+
 ---
 
 # Available Metrics
 
-| Metric           | Description         |
-| ---------------- | ------------------- |
-| CPU Usage        | Processor usage (%) |
-| CPU Temperature  | CPU temperature     |
-| RAM Usage        | Memory usage (%)    |
-| GPU Usage        | GPU load (%)        |
-| GPU Temperature  | GPU temperature     |
-| VRAM Usage       | GPU memory usage    |
-| Network Download | Download speed      |
-| Network Upload   | Upload speed        |
+| Metric           | Description              |
+| ---------------- | ------------------------ |
+| CPU Usage        | Processor usage (%)      |
+| CPU Temperature  | CPU temperature          |
+| RAM Usage        | Memory usage (%)         |
+| GPU Usage        | GPU load (%)             |
+| GPU Temperature  | GPU temperature          |
+| VRAM Usage       | GPU memory usage         |
+| Network Download | Download speed           |
+| Network Upload   | Upload speed             |
+| Disk C:          | Drive usage (auto-detected) |
+| Disk D: …        | Additional drives (if present) |
+
+---
+
+# Disk Monitoring
+
+StrangeCat Monitor automatically detects all connected drives (C:, D:, E:, F:, G:, etc.).
+
+## Data Collected Per Drive
+
+* Usage percentage
+* Used space (GB)
+* Total space (GB)
+* Free space (GB)
+* Sparkline history (Graph mode)
+
+## Options
+
+Enable or disable disk monitoring globally under **Settings → Visible Metrics**, or toggle individual drives separately. Configuration is saved to `config.json`.
+
+---
+
+# Performance Modes
+
+Choose a performance mode under **Settings → Display → Performance Mode**.
+
+| Mode      | Disk     | RAM  | CPU  | GPU  | VRAM |
+| --------- | -------- | ---- | ---- | ---- | ---- |
+| Ultra     | 10s      | 1s   | 1s   | 1s   | 1s   |
+| Normal    | 30s      | 2s   | 2s   | 2s   | 2s   |
+| Optimized | 1 min    | 4s   | 4s   | 4s   | 4s   |
+| Low       | 5 min    | 10s  | 10s  | 10s  | 10s  |
+
+Each metric is collected on its own interval, reducing unnecessary system calls. The internal check loop runs every 0.5s.
 
 ---
 
@@ -350,6 +399,41 @@ src: LibreHardwareMonitor
 | 3        | WMI PerfData         |
 | 4        | LibreHardwareMonitor |
 | 5        | CoreTemp             |
+
+---
+
+# Multilingual Support
+
+StrangeCat Monitor supports **English** and **French**.
+
+* Switch language instantly via the 🇬🇧 / 🇫🇷 flag button in the title bar
+* Or go to **Settings → Display → Language**
+* The entire interface updates in real time — no restart required
+
+---
+
+# Single Instance
+
+Only one instance of StrangeCat Monitor can run at a time. If you try to launch a second instance, a message will appear:
+
+```txt
+StrangeCat Monitor is already running
+```
+
+This prevents duplicate entries in Task Manager.
+
+---
+
+# Close Behavior
+
+When you click ✕, a confirmation dialog appears:
+
+* **Minimize** — hides to system tray
+* **Quit** — exits completely
+
+You can check **Remember my choice** to skip this dialog in future sessions. Use the **Ask Again** button in Settings to reset this preference.
+
+> When starting minimized, a tray notification appears for 3 seconds to confirm the app is running.
 
 ---
 
@@ -442,6 +526,7 @@ Example:
 
 Recommended settings:
 
+* Set Performance Mode to **Low** or **Optimized**
 * Enable Low Power Mode
 * Use 5s refresh rate
 * Use Compact Mode
@@ -510,8 +595,11 @@ GET http://127.0.0.1:5100/performance
     "gpu_usage": 22.0,
     "gpu_temp": 41.0,
     "cpu_temp": 58.5,
+    "cpu_temp_method": "LibreHardwareMonitor",
     "upload_speed": 12.4,
-    "download_speed": 340.1
+    "download_speed": 340.1,
+    "disk_C": 48.0,
+    "disk_D": 14.0
   }
 }
 ```
@@ -536,6 +624,7 @@ async function fetchStats() {
     console.log(ps.memory);
     console.log(ps.gpu_usage);
     console.log(ps.cpu_temp);
+    console.log(ps.disk_C);
 
   } catch {
     // Monitor offline
@@ -580,15 +669,45 @@ Deleting the file resets everything to defaults.
 
 # Changelog
 
+## v3.6
+
+* Configurable performance modes: Ultra, Normal, Optimized, Low
+* Each metric collected at its own interval (smarter resource usage)
+* New **Performance Mode** dropdown in Settings
+* Removed redundant close-action dropdown (replaced by **Ask Again** button)
+
+## v3.5
+
+* Automatic disk detection (C:, D:, E:, …)
+* Disk usage shown in Compact and Graph modes
+* Per-drive toggle in Settings → Visible Metrics
+* Disk data included in HTTP API response
+
+## v3.4
+
+* Minimum window height fixed at 100px (header always visible)
+* Improved collapse behavior: collapsed graphs keep column width, only height is reduced
+* Docstrings and comments added throughout the codebase
+
+## v3.3
+
+* Collapsed graphs stay visible at reduced size (spacer instead of hidden)
+* Language flag button (🇫🇷 / 🇬🇧) added to the title bar for instant switching
+* Single-instance enforcement via socket lock (port 51999)
+* `os._exit(0)` used on quit — no background processes left running
+* Fixed language change causing header/footer duplication
+* Fixed Combobox text color in readonly mode
+
 ## v3.2
 
 * Footer redesign
 * Responsive native Tkinter grid
-* Improved graph rendering
+* Improved graph rendering (actual canvas height, padding fixes)
 * Better compact mode resizing
 * Refined dark theme
-
----
+* Multilingual support (English / French), changeable in real time
+* Improved close dialog: Minimize / Quit + Remember my choice
+* Startup notification when launched minimized (auto-closes after 3s)
 
 ## v3.1
 
@@ -597,15 +716,11 @@ Deleting the file resets everything to defaults.
 * Low Power Mode
 * GPU cache system
 
----
-
 ## v2.2
 
 * CoreTemp crash fix
 * Settings save fix
-* Improved resize system
-
----
+* Improved resize system (8 directions)
 
 ## v1.0
 
