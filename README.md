@@ -1,191 +1,336 @@
 ```
 ╔══════════════════════════════════════════════════════════════════╗
 ║           🐱  STRANGECAT MONITOR  v3.2  —  README               ║
-║           System monitor + HTTP server for Wallpaper Engine      ║
 ╚══════════════════════════════════════════════════════════════════╝
 ```
 
 # StrangeCat Monitor
 
-**StrangeCat Monitor** est une application de monitoring système légère pour Windows, conçue pour alimenter les **wallpapers web Wallpaper Engine** en données de performance en temps réel. Elle expose un serveur HTTP local sur `http://127.0.0.1:5100/performance` que vos wallpapers peuvent interroger via JavaScript — aucune configuration réseau requise.
-
-Elle fonctionne aussi comme un **widget de bureau flottant**, toujours visible, redimensionnable, avec des graphiques sparkline et un mode compact.
+A lightweight Windows system monitor that sits on your desktop and feeds real-time performance data to your **Wallpaper Engine** wallpapers — all locally, no internet required.
 
 ---
 
-## Sommaire
+## Table of Contents
 
-- [Comment ça fonctionne](#comment-ça-fonctionne)
-- [Fonctionnalités](#fonctionnalités)
-- [Installation rapide](#installation-rapide)
-- [Créer un EXE standalone](#créer-un-exe-standalone)
-- [Interface](#interface)
-- [Sources de température CPU](#sources-de-température-cpu)
-- [API HTTP — Wallpaper Engine](#api-http--wallpaper-engine)
-- [Intégrer les données dans un wallpaper](#intégrer-les-données-dans-un-wallpaper)
-- [Wallpapers compatibles](#wallpapers-compatibles)
-- [Configuration](#configuration)
-- [Résolution de problèmes](#résolution-de-problèmes)
-- [Sécurité & vie privée](#sécurité--vie-privée)
-- [Dépendances](#dépendances)
-- [Historique des versions](#historique-des-versions)
+- [What does it do?](#what-does-it-do)
+- [Installation](#installation)
+- [The Interface](#the-interface)
+- [Graph Mode vs Compact Mode](#graph-mode-vs-compact-mode)
+- [Settings](#settings)
+- [Using it with Wallpaper Engine](#using-it-with-wallpaper-engine)
+- [CPU Temperature](#cpu-temperature)
+- [Troubleshooting](#troubleshooting)
+- [For Developers](#for-developers)
 
 ---
 
-## Comment ça fonctionne
+## What does it do?
 
-StrangeCat Monitor fonctionne en deux parties qui travaillent ensemble :
+StrangeCat Monitor does two things at the same time:
 
-### 1 — Le widget de bureau
+**① It shows a floating widget on your desktop**
+A small borderless window displays your system stats in real time — CPU usage, RAM, GPU, temperatures, and network speeds. It stays on top of everything, is draggable anywhere on screen, and resizable.
 
-Au lancement, une petite fenêtre flottante apparaît sur votre bureau. Elle interroge Windows toutes les 2 secondes pour récupérer les données de votre matériel (CPU, RAM, GPU, réseau) et les affiche sous forme de graphiques ou de barres selon le mode choisi. La fenêtre reste toujours visible par-dessus vos autres applications.
-
-### 2 — Le mini-serveur local
-
-En parallèle, StrangeCat Monitor ouvre un petit serveur web **uniquement accessible depuis votre propre machine** sur le port **5100**. Ce serveur répond à une seule adresse : `http://127.0.0.1:5100/performance`, et renvoie les dernières mesures au format JSON.
-
-### Pourquoi c'est utile pour Wallpaper Engine
-
-Les wallpapers web de Wallpaper Engine sont des pages HTML/JavaScript qui tournent dans un navigateur embarqué. Ce navigateur peut faire des requêtes réseau vers `localhost`, ce qui lui permet d'interroger StrangeCat Monitor en temps réel. Votre wallpaper lit les données JSON, et met à jour ses jauges, graphiques ou textes dynamiquement — tant que StrangeCat Monitor tourne en arrière-plan.
+**② It feeds data to your Wallpaper Engine wallpapers**
+Behind the scenes, it runs a tiny local server. Wallpaper Engine wallpapers that support StrangeCat Monitor can read your live system stats and display them — animated bars, live graphs, glowing indicators, whatever the wallpaper is designed to show.
 
 ```
-  Votre PC                           Wallpaper Engine
-  ──────────────────────────────     ─────────────────────────────
-  StrangeCat Monitor                 Wallpaper web (HTML/JS)
-      │                                    │
-      │  collecte CPU/RAM/GPU/NET          │
-      │  toutes les 2 secondes             │
-      │                                    │  fetch("http://127.0.0.1:5100/performance")
-      │◄───────────────────────────────────│
-      │                                    │
-      │──── répond en JSON ───────────────►│
-                                           │  met à jour les jauges du wallpaper
+  StrangeCat Monitor (running in background)
+        │
+        │  reads your hardware every 2 seconds
+        │
+        ├──► updates the floating widget on your desktop
+        │
+        └──► serves data at http://127.0.0.1:5100/performance
+                    │
+                    └──► Wallpaper Engine wallpaper reads it
+                         and animates your stats live
 ```
 
-> StrangeCat Monitor doit être **lancé avant Wallpaper Engine** (ou au démarrage de Windows) pour que le wallpaper reçoive les données. Si le monitor n'est pas actif, le wallpaper peut afficher des valeurs par défaut ou "--".
+> The monitor needs to be running for compatible wallpapers to show live data.
+> You can minimize it to the system tray — it will keep working in the background.
 
 ---
 
-## Fonctionnalités
+## Installation
 
-- **Widget flottant** — fenêtre sans bordure, toujours au-dessus, transparence réglable
-- **Mode Graph** — grille responsive de sparklines (1 à 3 colonnes selon la largeur), chaque métrique collapsible
-- **Mode Compact** — barres horizontales ultra-légères, hauteur auto
-- **Resize libre** — coin SE, largeur et hauteur ; tout le contenu se rescale proportionnellement
-- **Serveur HTTP local** — endpoint JSON sur le port **5100** pour Wallpaper Engine
-- **Métriques collectées** :
-  - CPU usage & température
-  - RAM usage
-  - GPU usage & température (NVIDIA via `nvidia-smi`)
-  - VRAM usage
-  - Vitesse réseau montante et descendante
-- **Détection auto de la temp CPU** — 5 méthodes par ordre de priorité
-- **Low Power Mode** — refresh ralenti quand la fenêtre est cachée, skip du dessin
-- **Tray icon** — Show / Hide / Settings / Quit
-- **Démarrage automatique** — option dans les paramètres (registre Windows)
-- **Config persistante** — `%APPDATA%\StrangeCat\config.json`
+### Option A — Run from source (requires Python)
 
----
-
-## Installation rapide
-
-### Prérequis
+1. Make sure [Python 3.10+](https://www.python.org/) is installed
+2. Open a terminal in the StrangeCat Monitor folder and run:
 
 ```
-Python 3.10+   (https://www.python.org/)
-```
-
-### Dépendances Python
-
-```bat
 pip install psutil pillow pystray pywin32 wmi
 ```
 
-### Lancer l'application
+3. Run once to generate the icon:
+```
+python make_icon.py
+```
 
-```bat
-python make_icon.py           (une seule fois, génère icon.ico)
+4. Launch the app:
+```
 python strangecat_monitor.py
 ```
 
-> Pour avoir la **température CPU** sous Windows, installez
-> [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)
-> et lancez-le **en Administrateur** avant de démarrer StrangeCat Monitor.
+### Option B — Standalone EXE (no Python needed)
+
+Double-click `build.bat` to generate `dist\StrangeCat Monitor.exe`.
+Move it anywhere you like and run it directly — no dependencies needed.
+
+### Auto-start with Windows
+
+Open Settings (`⚙`) → System → enable **"Start on boot"** and save.
+StrangeCat Monitor will launch automatically every time Windows starts.
+
+> **Tip:** If you use Wallpaper Engine, enabling auto-start ensures your wallpaper always has live data without having to manually launch the monitor.
 
 ---
 
-## Créer un EXE standalone
-
-Double-cliquez `build.bat` (PyInstaller requis : `pip install pyinstaller`).
-
-L'exécutable est généré dans `dist\StrangeCat Monitor.exe`.
-Il peut être placé n'importe où et lancé sans Python installé.
-
----
-
-## Interface
+## The Interface
 
 ```
-┌──────────────────────────────────────────────────────┐  ← ligne accent rouge
-│ 🐱 STRANGECAT          [⊟] [⚙] [—] [✕]             │  ← titlebar (drag)
+┌──────────────────────────────────────────────────────┐  ← red accent line
+│ 🐱 STRANGECAT          [⊟] [⚙] [—] [✕]             │  ← drag here to move
 │    MONITOR  v3.2                                     │
 ├──────────────────────────────────────────────────────┤
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────┐  │
-│  │ ▾ CPU     40%│  │ ▾ RAM     51%│  │ ▾ GPU      │  │  ← grille graph
-│  │ ─────────────│  │ ─────────────│  │ ───────────│  │    responsive
-│  │  ∿∿∿∿∿∿∿∿∿∿● │  │ ▬▬▬▬▬▬▬▬▬▬●│  │ ∿∿∿∿∿∿∿∿● │  │    1-3 colonnes
-│  └──────────────┘  └──────────────┘  └────────────┘  │
-│  ... (GPU TEMP · VRAM · NET↓ · NET↑)                  │
+│                                                      │
+│   your metrics displayed here (graph or compact)     │
+│                                                      │
 ├──────────────────────────────────────────────────────┤
-│ src: LibreHardwareMonitor   14:32:07    ● :5100   ◢  │  ← footer
-└──────────────────────────────────────────────────────┘  ← ligne accent rouge
+│  src: LibreHardwareMonitor   14:32:07   ● :5100  ◢  │  ← footer
+└──────────────────────────────────────────────────────┘  ← red accent line
 ```
 
-**Boutons de la titlebar :**
+**Title bar buttons:**
 
-| Bouton | Action |
-|--------|--------|
-| `⊟` / `⊞` | Basculer mode Compact / Graph |
-| `⚙` | Ouvrir les paramètres |
-| `—` | Réduire dans le tray |
-| `✕` | Quitter |
+| Button | What it does |
+|--------|--------------|
+| `⊟` / `⊞` | Switch between Graph mode and Compact mode |
+| `⚙` | Open Settings |
+| `—` | Hide to system tray (keeps running) |
+| `✕` | Quit completely |
 
-**Footer (bas de fenêtre) :**
-- Gauche : source de température CPU active
-- Centre : heure courante (mise à jour en temps réel)
-- Droite : `● :5100` = serveur actif · `○ off` = désactivé
+**Footer (bottom of window):**
+
+| Position | What it shows |
+|----------|---------------|
+| Left | Which method is reading your CPU temperature |
+| Center | Current time |
+| Right | `● :5100` = HTTP server active · `○ off` = disabled |
+
+**Moving & resizing:**
+- Drag the title bar to move the window
+- Drag the `◢` corner (bottom-right) to resize
+- The content scales automatically with the window size
 
 ---
 
-## Sources de température CPU
+## Graph Mode vs Compact Mode
 
-StrangeCat Monitor essaie les méthodes suivantes dans l'ordre, et utilise la première qui retourne une valeur valide :
+Toggle between modes with the `⊟` / `⊞` button in the title bar.
 
-| Priorité | Source | Pré-requis |
-|----------|--------|-----------|
-| 1 | `psutil` | Aucun (fonctionne sur Linux / certains OEM Windows) |
-| 2 | WMI `AcpiThermal` | Aucun (ACPI BIOS, variable selon les machines) |
-| 3 | WMI `PerfData` | Aucun (compteurs Windows) |
-| 4 | **LibreHardwareMonitor** / OpenHardwareMonitor | App tierce lancée en Administrateur ✓ |
-| 5 | **CoreTemp** | App tierce avec mémoire partagée active |
+### Graph Mode (default)
 
-**Recommandation Windows :** installer [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) et le lancer en Administrateur au démarrage. C'est la source la plus fiable sur la majorité des configurations.
+Each metric gets its own cell with a live sparkline graph showing the last 60 seconds of history. Cells are arranged in a responsive grid — 1, 2, or 3 columns depending on how wide you make the window.
 
-La source active est visible dans le **footer** de la fenêtre et dans le champ `cpu_temp_method` de l'API.
+```
+  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+  │ ▾ CPU   40% │  │ ▾ RAM   51% │  │ ▾ GPU    22%│
+  │ ∿∿∿∿∿∿∿∿●  │  │ ▬▬▬▬▬▬▬▬● │  │ ∿∿∿∿∿∿∿∿●  │
+  └─────────────┘  └─────────────┘  └─────────────┘
+  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+  │ ▾ GPU TEMP  │  │ ▾ VRAM  12% │  │ ▾ NET ↓     │
+  │  41.0°      │  │ ▬▬●         │  │   ∿∿∿∿∿●   │
+  └─────────────┘  └─────────────┘  └─────────────┘
+```
+
+Each cell can be **collapsed** individually by clicking the `▾` arrow — useful if you don't care about a specific metric but still want it active for the wallpaper.
+
+Color coding:
+- 🟢 Green = normal
+- 🟡 Yellow = getting high (CPU/GPU/RAM above ~75%)
+- 🔴 Red = critical (above ~90%)
+
+### Compact Mode
+
+A minimal bar-based view with no graphs — just labels, a progress bar, and the current value. Much smaller footprint, great for a corner of your screen.
+
+```
+  CPU       ▬▬▬▬▬▬▬▬▬▬▬▬░░░░░   40 %
+  CPU TEMP  ▬▬▬▬▬▬▬▬░░░░░░░░░   58 °
+  RAM       ▬▬▬▬▬▬▬▬▬▬▬▬▬░░░░   51 %
+  GPU       ▬▬▬▬░░░░░░░░░░░░░   22 %
+  ...
+```
+
+> In Compact mode, window height adjusts automatically to fit the content. Only width is resizable.
 
 ---
 
-## API HTTP — Wallpaper Engine
+## Settings
 
-Le serveur HTTP démarre automatiquement sur :
+Click `⚙` to open the settings window.
+
+### System
+| Option | Description |
+|--------|-------------|
+| Start on boot | Launch automatically when Windows starts |
+| Start minimized | Start hidden in the system tray |
+
+### Display
+| Option | Description |
+|--------|-------------|
+| Always on top | Keep the window above all other apps |
+| Compact mode | Switch to compact bar view |
+| Opacity | Window transparency (from 30% to 100%) |
+| Refresh rate | How often stats update (1, 2, or 5 seconds) |
+| Temp unit | Celsius or Fahrenheit |
+| Low power mode | Slow down refresh when window is hidden (saves CPU) |
+
+### HTTP API
+| Option | Description |
+|--------|-------------|
+| Enable HTTP server | Turn the data feed on or off |
+| Port | Port number (default: **5100**) |
+
+### Visible Metrics
+Toggle each metric on or off individually — it hides it from the widget and stops sending it to wallpapers.
+
+---
+
+## Using it with Wallpaper Engine
+
+### Compatible wallpapers
+
+Wallpapers that support StrangeCat Monitor will automatically show your live stats when the monitor is running. Just make sure:
+
+1. StrangeCat Monitor is running (or starts with Windows)
+2. The HTTP server is enabled (footer shows `● :5100`)
+3. The wallpaper is set in Wallpaper Engine
+
+> **Port note:** StrangeCat Monitor uses port **5100**. Some other monitors (like sheetau's PerformanceMonitor) use port **5000**. If a wallpaper was built for port 5000, it won't connect to StrangeCat Monitor without changing either the port in Settings or the port in the wallpaper.
+
+### What data is available to wallpapers?
+
+| Metric | What it represents |
+|--------|--------------------|
+| CPU usage | How hard your processor is working, in % |
+| CPU temperature | Processor temperature in °C or °F |
+| RAM usage | How much of your memory is in use, in % |
+| GPU usage | How hard your graphics card is working, in % |
+| GPU temperature | Graphics card temperature |
+| VRAM usage | How much GPU memory is in use, in % |
+| Network download | Current download speed in KB/s |
+| Network upload | Current upload speed in KB/s |
+
+---
+
+## CPU Temperature
+
+Reading CPU temperature on Windows requires a helper app on most systems. StrangeCat Monitor tries several methods automatically and uses the first one that works:
+
+1. Built-in Windows sensors (works on some laptops and OEM systems, no extra app needed)
+2. **LibreHardwareMonitor** — the most reliable option for desktops
+3. **CoreTemp** — alternative if LibreHardwareMonitor doesn't work on your system
+
+The active source is shown in the bottom-left footer of the window.
+
+**To get CPU temperature readings on most desktops:**
+
+1. Download [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases)
+2. Run it **as Administrator** (right-click → Run as administrator)
+3. Leave it running in the background
+4. Restart StrangeCat Monitor — the footer should now show `src: LibreHardwareMonitor`
+
+> LibreHardwareMonitor can be minimized to the tray. It doesn't need to be visible to work.
+
+---
+
+## Troubleshooting
+
+### My wallpaper shows "--" or no data
+
+The wallpaper can't reach StrangeCat Monitor. Work through this checklist:
+
+- **Is StrangeCat Monitor running?** Check your system tray for the 🐱 icon. If it's not there, launch the app.
+- **Is the HTTP server on?** The footer should show `● :5100`. If it says `○ off`, go to Settings → HTTP API and enable it.
+- **Is the port correct?** Open a browser and go to `http://127.0.0.1:5100/performance`. If you see a page full of numbers, the server is working fine — the issue is in the wallpaper. If the page doesn't load, the server isn't running.
+- **Port mismatch?** Some wallpapers are built for port 5000 (a different monitor app). Check if your wallpaper has a port setting, or change the port in StrangeCat Monitor Settings to match.
+
+---
+
+### CPU temperature shows "N/A"
+
+Windows doesn't give direct access to CPU temperature sensors on most systems.
+
+**Fix:** Install [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases), run it as Administrator, and leave it in the background. See the [CPU Temperature](#cpu-temperature) section above.
+
+---
+
+### GPU shows 0% or no data
+
+StrangeCat Monitor reads GPU data using NVIDIA's built-in tool (`nvidia-smi`). This only works with NVIDIA graphics cards.
+
+- **AMD or Intel GPU:** GPU metrics are not supported. CPU, RAM, and network will still work fine.
+- **NVIDIA GPU but still showing 0%:** Open a Command Prompt and type `nvidia-smi`. If you get an error, reinstall your NVIDIA drivers from [nvidia.com](https://www.nvidia.com/Download/index.aspx).
+
+---
+
+### The window disappeared / is off-screen
+
+This can happen after changing monitor resolution or unplugging a display.
+
+**Fix:**
+1. Right-click the 🐱 tray icon → **Show**
+2. If the window still doesn't appear on screen, open `%APPDATA%\StrangeCat\config.json` in Notepad, set `pos_x` and `pos_y` to `100`, save, and relaunch.
+
+---
+
+### Port 5100 is already in use
+
+The footer shows `○ off` even with the server enabled, or the app shows an error on startup.
+
+**Fix:** Go to Settings → HTTP API → change the port to something else (e.g. `5101`, `5200`). Click SAVE — the server restarts automatically. Update your wallpaper's port setting to match if needed.
+
+> To find out what's using port 5100: open Command Prompt and run `netstat -ano | findstr :5100`
+
+---
+
+### The app uses too much CPU
+
+- Enable **Low Power Mode** in Settings → Display (on by default)
+- Set **Refresh Rate** to 5 seconds in Settings → Display
+- Switch to **Compact Mode** — fewer graphics to draw
+- Minimize to tray when you don't need the widget visible — refresh slows down automatically
+
+---
+
+### Auto-start doesn't work
+
+**Fix:** Run StrangeCat Monitor once as Administrator (right-click the .exe or .py → Run as administrator), enable Start on boot in Settings, and save. Future launches won't need admin rights.
+
+---
+
+### Reset everything to defaults
+
+Delete this file and the app will start fresh with default settings:
 
 ```
-http://127.0.0.1:5100/performance
+%APPDATA%\StrangeCat\config.json
 ```
 
-> **Port par défaut : 5100.** Modifiable dans Settings → HTTP API.
+---
 
-### Réponse JSON
+## For Developers
+
+### HTTP API
+
+```
+GET http://127.0.0.1:5100/performance
+```
+
+Response:
 
 ```json
 {
@@ -207,256 +352,83 @@ http://127.0.0.1:5100/performance
 }
 ```
 
-### Référence des champs
+CORS header `Access-Control-Allow-Origin: *` is included on every response — no extra config needed in Wallpaper Engine.
 
-| Clé | Description | Unité |
-|-----|-------------|-------|
-| `cpu` | Usage CPU global | % |
-| `memory` | Usage RAM | % |
-| `memory_gb` | RAM utilisée / totale | GB |
-| `gpu_usage` | Usage GPU (NVIDIA) | % |
-| `gpu_temp` | Température GPU | °C |
-| `vram_usage` | Usage VRAM | % |
-| `vram_gb` | VRAM utilisée / totale | GB |
-| `cpu_temp` | Température CPU (`null` si indisponible) | °C |
-| `cpu_temp_method` | Source utilisée pour la temp CPU | string |
-| `upload_speed` | Débit réseau montant | KB/s |
-| `download_speed` | Débit réseau descendant | KB/s |
-| `timestamp` | Timestamp UNIX de la mesure | s |
-
----
-
-## Intégrer les données dans un wallpaper
-
-Exemple JavaScript complet pour un wallpaper web Wallpaper Engine :
+### Wallpaper integration example
 
 ```javascript
-const STRANGECAT_PORT = 5100; // Port StrangeCat Monitor (défaut)
+const PORT = 5100;
 
-async function fetchPerformance() {
+async function fetchStats() {
   try {
-    const response = await fetch(`http://127.0.0.1:${STRANGECAT_PORT}/performance`);
-    if (!response.ok) throw new Error("StrangeCat Monitor non disponible");
+    const res  = await fetch(`http://127.0.0.1:${PORT}/performance`);
+    const data = await res.json();
+    const ps   = data.psutil ?? {};
 
-    const data = await response.json();
-    const ps = data.psutil ?? {};
+    // Use the values — all numbers, null if unavailable
+    console.log(ps.cpu);           // CPU %
+    console.log(ps.memory);        // RAM %
+    console.log(ps.gpu_usage);     // GPU %
+    console.log(ps.cpu_temp);      // °C or null
+    console.log(ps.download_speed); // KB/s
 
-    updateBar("cpu",      ps.cpu,       "%");
-    updateBar("ram",      ps.memory,    "%");
-    updateBar("gpu",      ps.gpu_usage, "%");
-    updateBar("vram",     ps.vram_usage,"%");
-
-    updateText("gpu-temp",  ps.gpu_temp  != null ? `${ps.gpu_temp} °C`  : "—");
-    updateText("cpu-temp",  ps.cpu_temp  != null ? `${ps.cpu_temp} °C`  : "—");
-    updateText("net-down",  formatSpeed(ps.download_speed));
-    updateText("net-up",    formatSpeed(ps.upload_speed));
-
-  } catch (err) {
-    // StrangeCat Monitor non lancé : afficher état hors ligne
-    showOfflineState();
+  } catch {
+    // Monitor not running — show fallback state
   }
 }
 
-function formatSpeed(kbps) {
-  if (kbps == null) return "—";
-  if (kbps >= 1024) return `${(kbps / 1024).toFixed(1)} MB/s`;
-  return `${kbps.toFixed(0)} KB/s`;
-}
-
-// Sync avec le refresh_rate par défaut (2s)
-setInterval(fetchPerformance, 2000);
-fetchPerformance();
+setInterval(fetchStats, 2000); // match the default refresh rate
+fetchStats();
 ```
 
-> **CORS :** le serveur inclut `Access-Control-Allow-Origin: *` — aucune configuration supplémentaire requise dans Wallpaper Engine.
+### Building from source
 
----
+```bat
+pip install pyinstaller psutil pillow pystray pywin32 wmi
+python make_icon.py
+build.bat
+```
 
-## Wallpapers compatibles
+Output: `dist\StrangeCat Monitor.exe`
 
-Les wallpapers suivants sont conçus pour fonctionner avec StrangeCat Monitor sur le port **5100** :
-
-> *Aucun wallpaper répertorié pour l'instant. Si vous créez un wallpaper compatible, ouvrez une issue ou une PR pour l'ajouter ici.*
-
-Pour créer un wallpaper compatible, il suffit de faire un `fetch` sur `http://127.0.0.1:5100/performance` et de lire les champs `psutil`. Voir l'[exemple ci-dessus](#intégrer-les-données-dans-un-wallpaper).
-
----
-
-## Configuration
-
-Les paramètres sont accessibles via le bouton `⚙` de la titlebar.
-Le fichier de configuration est enregistré dans :
+### Config file
 
 ```
 %APPDATA%\StrangeCat\config.json
 ```
 
-### Paramètres disponibles
+All settings are stored here. The app creates it on first launch with defaults. Safe to delete to reset.
 
-| Paramètre | Défaut | Description |
-|-----------|--------|-------------|
-| `start_on_boot` | `false` | Démarrage automatique avec Windows |
-| `start_minimized` | `false` | Démarrer réduit dans le tray |
-| `always_on_top` | `true` | Fenêtre toujours au-dessus |
-| `opacity` | `0.96` | Transparence (0.3 → 1.0) |
-| `refresh_rate` | `2` | Intervalle de refresh (secondes) |
-| `compact_mode` | `false` | Mode compact (barres) ou graph (sparklines) |
-| `temp_unit` | `"C"` | Unité de température (`"C"` ou `"F"`) |
-| `low_power_mode` | `true` | Ralentit le refresh quand la fenêtre est cachée |
-| `http_enabled` | `true` | Activer le serveur HTTP |
-| `http_port` | `5100` | Port du serveur HTTP |
-| `window_width` | `380` | Largeur initiale de la fenêtre (px) |
-| `show_cpu` | `true` | Afficher CPU usage |
-| `show_cpu_temp` | `true` | Afficher CPU température |
-| `show_ram` | `true` | Afficher RAM |
-| `show_gpu` | `true` | Afficher GPU usage |
-| `show_gpu_temp` | `true` | Afficher GPU température |
-| `show_vram` | `true` | Afficher VRAM |
-| `show_net` | `true` | Afficher réseau ↓↑ |
+### Temperature source priority
 
----
+| Priority | Source | Requires |
+|----------|--------|----------|
+| 1 | psutil built-in | Nothing (Linux / some OEM laptops) |
+| 2 | WMI AcpiThermal | Nothing (ACPI BIOS) |
+| 3 | WMI PerfData | Nothing (Windows performance counters) |
+| 4 | LibreHardwareMonitor | Running as Administrator |
+| 5 | CoreTemp | Running with shared memory enabled |
 
-## Résolution de problèmes
+Active source exposed as `cpu_temp_method` in the API response.
 
-### 🌡️ La température CPU affiche "N/A"
+### Changelog
 
-**Cause :** Windows ne donne pas accès aux capteurs thermiques sans application tierce sur la plupart des configurations.
+**v3.2**
+- Footer moved to bottom: temp source · time · HTTP status
+- Graph grid fully rewritten — native Tkinter grid with `uniform` weights, no Canvas/Scrollbar
+- Refined dark palette, green value labels, dot glow ring on sparklines
+- Graph mode: correct initial height (420px) when toggling from compact
 
-**Solutions, dans l'ordre :**
-1. Installez [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)
-2. Lancez-le **en Administrateur** (clic droit → Exécuter en tant qu'administrateur)
-3. Laissez-le tourner en arrière-plan (il peut être minimisé dans le tray)
-4. Relancez StrangeCat Monitor — la source devrait passer à `LibreHardwareMonitor`
+**v3.1**
+- First responsive grid implementation in graph mode
+- Larger footer and header buttons
+- Low Power Mode, GPU cache (2s TTL)
+- Default refresh rate increased from 1s to 2s
 
-> Vous pouvez aussi essayer [CoreTemp](https://www.alcpu.com/CoreTemp/) si LibreHardwareMonitor ne fonctionne pas sur votre machine.
+**v2.2**
+- CoreTemp shared memory crash fixed
+- Settings save fixed, config now in `%APPDATA%`
+- 8-direction window resize
 
----
-
-### 📊 Le wallpaper n'affiche pas les données / affiche "--"
-
-**Cause :** Le wallpaper ne peut pas joindre le serveur StrangeCat Monitor.
-
-**Vérifications :**
-1. **StrangeCat Monitor est-il lancé ?** — Vérifiez la barre des tâches ou le tray (icône 🐱). Si non, lancez-le.
-2. **Le serveur HTTP est-il actif ?** — Le footer doit afficher `● :5100`. Si c'est `○ off`, allez dans Settings → HTTP API et activez le serveur.
-3. **Le port est-il le bon ?** — Vérifiez que votre wallpaper utilise bien le port `5100`. Certains wallpapers utilisent le port `5000` (PerformanceMonitor de sheetau) — ils ne sont pas directement compatibles sans modification.
-4. **Testez manuellement** — Ouvrez un navigateur et allez sur `http://127.0.0.1:5100/performance`. Si vous voyez du JSON, le serveur fonctionne correctement.
-
----
-
-### 🔴 Le port 5100 est déjà utilisé
-
-**Symptôme :** Le footer affiche `○ off` même avec le serveur activé, ou une erreur apparaît au démarrage.
-
-**Solution :**
-1. Allez dans Settings → HTTP API
-2. Changez le port (ex. `5101`, `5200`, `8080`)
-3. Cliquez SAVE — le serveur redémarre automatiquement sur le nouveau port
-4. Mettez à jour le port dans vos wallpapers en conséquence
-
-> Pour vérifier quel programme utilise le port 5100 : ouvrez un terminal et tapez `netstat -ano | findstr :5100`
-
----
-
-### 🎮 GPU affiche 0 % ou pas de données
-
-**Cause :** StrangeCat Monitor utilise `nvidia-smi` pour interroger le GPU — uniquement disponible sur les cartes NVIDIA.
-
-**AMD / Intel :** Les données GPU ne sont pas supportées pour le moment. Les métriques GPU resteront à 0 ou N/A. Seuls CPU, RAM et réseau seront disponibles.
-
-**NVIDIA — `nvidia-smi` introuvable :**
-- Vérifiez que les drivers NVIDIA sont installés
-- Ouvrez un terminal et tapez `nvidia-smi` — si la commande est inconnue, réinstallez les drivers depuis [nvidia.com](https://www.nvidia.com/Download/index.aspx)
-
----
-
-### 🪟 La fenêtre a disparu / est hors écran
-
-**Cause :** La fenêtre a été déplacée hors des limites de l'écran (ex. après un changement de résolution ou de configuration multi-moniteurs).
-
-**Solution :**
-1. Clic droit sur l'icône tray → **Show**
-2. Si la fenêtre n'apparaît pas à l'écran, éditez manuellement la config :
-   - Ouvrez `%APPDATA%\StrangeCat\config.json`
-   - Remettez `pos_x` et `pos_y` à des valeurs valides (ex. `100`, `100`)
-   - Sauvegardez et relancez
-
----
-
-### ⚡ L'application consomme trop de ressources
-
-**Solutions :**
-- Activez **Low Power Mode** dans Settings → Display (coché par défaut)
-- Augmentez le **Refresh Rate** à 5 secondes dans Settings → Display
-- Passez en **mode Compact** (bouton `⊟` dans la titlebar) — moins de calculs graphiques
-- Réduisez la fenêtre dans le tray (`—`) quand vous n'en avez pas besoin — le refresh se ralentit automatiquement
-
----
-
-### 🔄 L'application ne démarre pas au boot malgré l'option activée
-
-**Cause :** Le raccourci de démarrage nécessite des droits d'écriture dans le registre.
-
-**Solution :**
-1. Lancez StrangeCat Monitor **en Administrateur** une fois
-2. Allez dans Settings → System → "Start on boot" → activez et sauvegardez
-3. Les lancements suivants n'auront plus besoin des droits admin
-
----
-
-### 🗑️ Réinitialiser la configuration
-
-Supprimez le fichier de config et l'application repartira avec les valeurs par défaut :
-
-```
-%APPDATA%\StrangeCat\config.json
-```
-
----
-
-## Sécurité & vie privée
-
-- Fonctionne **entièrement en local** — aucune donnée envoyée sur internet
-- Le serveur HTTP n'écoute que sur `127.0.0.1` (votre machine uniquement, inaccessible depuis le réseau)
-- Aucune télémétrie, aucun tracking, aucun compte requis
-- Code source entièrement lisible et modifiable
-- La configuration est stockée localement dans `%APPDATA%\StrangeCat\`
-
----
-
-## Dépendances
-
-| Bibliothèque | Usage |
-|-------------|-------|
-| [psutil](https://github.com/giampaolo/psutil) | CPU, RAM, réseau |
-| [Pillow](https://python-pillow.org/) | Génération de l'icône tray |
-| [pystray](https://github.com/moses-palmer/pystray) | Icône systray Windows |
-| [pywin32](https://github.com/mhammond/pywin32) | Registre Windows (démarrage auto) |
-| [wmi](https://pypi.org/project/WMI/) | Température CPU via WMI / LibreHardwareMonitor |
-| `nvidia-smi` | GPU NVIDIA (inclus dans les drivers NVIDIA) |
-| [Wallpaper Engine](https://www.wallpaperengine.io/) | Client wallpaper cible |
-
----
-
-## Historique des versions
-
-### v3.2 — Rendu & Grid
-- **Footer** déplacé en bas : source temp · heure · statut HTTP
-- **Grid responsive** réécrite — layout natif Tkinter, cellules égales (uniform), sans Canvas ni Scrollbar
-- **Palette** affinée (plus sombre, plus contrastée)
-- Valeurs affichées en vert, halo sur les dots de graphiques
-- Mode graph : hauteur initiale correcte (420px) au basculement depuis compact
-
-### v3.1 — Mode Graph
-- Première implémentation de la grille responsive
-- Footer agrandi, boutons plus grands
-- Low Power Mode, cache GPU (2s TTL)
-- Refresh rate par défaut augmenté (1→2s)
-
-### v2.2 — Stabilité
-- Crash CoreTemp résolu (mémoire partagée sécurisée)
-- Settings : Save fiable, config dans `%APPDATA%`
-- Resize 8 directions
-
-### v1.0 — Initial
-- Widget flottant, mode compact, API HTTP
+**v1.0**
+- Initial release: floating widget, compact mode, HTTP API
